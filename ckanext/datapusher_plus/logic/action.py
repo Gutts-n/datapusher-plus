@@ -8,6 +8,7 @@ import ckan.lib.jobs as rq_jobs
 import logging
 import json
 import datetime
+import os
 
 from dateutil.parser import parse as parse_date
 from six.moves.urllib.parse import urljoin  # type: ignore # noqa
@@ -115,10 +116,10 @@ def datapusher_submit(context, data_dict: dict[str, Any]):
             },
         )
         assume_task_stale_after = datetime.timedelta(
-            seconds=int(config.get("ckan.datapusher.assume_task_stale_after", 3600))
+            seconds=int(os.environ.get("CKAN__DATAPUSHER__ASSUME_TASK_STALE_AFTER", "3600"))
         )
         assume_task_stillborn_after = datetime.timedelta(
-            seconds=int(config.get("ckan.datapusher.assume_task_stillborn_after", 5))
+            seconds=int(os.environ.get("CKAN__DATAPUSHER__ASSUME_TASK_STILLBORN_AFTER", "5"))
         )
         if existing_task.get("state") == "pending":
             import re
@@ -193,7 +194,7 @@ def datapusher_submit(context, data_dict: dict[str, Any]):
             "original_url": resource_dict.get("url"),
         },
     }
-    dp_timeout = tk.config.get("ckan.datapusher.timeout", 3000)
+    dp_timeout = os.environ.get("CKAN__DATAPUSHER__TIMEOUT", "3000")
     try:
         job = tk.enqueue_job(
             jobs.datapusher_plus_to_datastore,

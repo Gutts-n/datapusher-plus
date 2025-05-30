@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import logging
 import json
 import datetime
+import os
 
 import ckan.plugins.toolkit as tk
 from ckanext.datapusher_plus.model import Logs
@@ -77,12 +78,12 @@ def get_dp_plus_user_apitoken():
     datapusher plus actions require an authenticated user to perform the actions. This
     method returns the api_token set in the config file.
     """
-    api_token = tk.config.get("ckanext.datapusher_plus.api_token", None)
+    api_token = os.environ.get("CKANEXT__DATAPUSHER_PLUS__API_TOKEN")
     if api_token:
         return api_token
 
     # Consider also the CKAN default api_token for backward compatibility
-    api_token = tk.config.get("ckan.datapusher.api_token", None)
+    api_token = os.environ.get("CKAN__DATAPUSHER__API_TOKEN")
     if api_token:
         return api_token
     else:

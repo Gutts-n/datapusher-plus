@@ -218,9 +218,9 @@ class FormulaProcessor:
 
         env = Environment(loader=DictLoader(context), bytecode_cache=bytecode_cache)
 
-        datastore_sqlsearch_enabled = tk.config.get(
-            "ckan.datastore.sqlsearch.enabled", False
-        )
+        datastore_sqlsearch_enabled = os.environ.get(
+            "CKAN__DATASTORE__SQLSEARCH__ENABLED", "False"
+        ).lower() == "true"
 
         # Register filters
         for func in JINJA2_FILTERS:

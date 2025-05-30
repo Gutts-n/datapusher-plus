@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from ckan.common import CKANConfig
 import logging
+import os
 from typing import Any, Callable
 
 from ckan.types import Action, AuthFunction, Context
@@ -86,8 +87,8 @@ class DatapusherPlusPlugin(p.SingletonPlugin):
         context = {"model": model, "ignore_auth": True, "defer_commit": True}
 
         resource_format = resource_dict.get("format")
-        supported_formats = tk.config.get("ckan.datapusher.formats") or tk.config.get(
-            "ckanext.datapusher_plus.formats"
+        supported_formats = os.environ.get("CKAN__DATAPUSHER__FORMATS") or os.environ.get(
+            "CKANEXT__DATAPUSHER_PLUS__FORMATS"
         )
         if not supported_formats:
             log.debug(
