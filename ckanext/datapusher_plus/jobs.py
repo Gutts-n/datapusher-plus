@@ -1366,6 +1366,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 value TEXT,
                 count INTEGER,
                 percentage FLOAT,
+                frequency INTEGER,
                 PRIMARY KEY (field, value, count)
             )
         """
