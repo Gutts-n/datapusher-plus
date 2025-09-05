@@ -686,7 +686,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     format = resource.get("format").upper()
     if format in spreadsheet_extensions:
         # if so, export spreadsheet as a CSV file
-        default_excel_sheet = conf.DEFAULT_EXCEL_SHEET
+        default_excel_sheet = 0
         logger.info(
             "Converting {} sheet {} to CSV...".format(format, default_excel_sheet)
         )
