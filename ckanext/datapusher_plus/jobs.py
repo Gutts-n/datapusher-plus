@@ -1124,7 +1124,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         tmp,
         "--infer-dates",
         "--dates-whitelist",
-        "all",
+        conf.QSV_DATES_WHITELIST,
         "--stats-jsonl",
         "--output",
         qsv_stats_csv,
