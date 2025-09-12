@@ -77,8 +77,12 @@ def delete_datastore_resource(resource_id):
         tk.get_action("datastore_delete")(
             {"ignore_auth": True}, {"resource_id": resource_id, "force": True}
         )
-    except tk.ObjectNotFound:
-        raise utils.JobError("Deleting existing datastore failed.")
+    except tk.ObjectNotFound as e:
+        # Resource doesn't exist - deletion goal is already achieved
+        # Log the situation for debugging
+        log = logging.getLogger(__name__)
+        log.warning("Resource '{}' not found during deletion - already deleted or never existed: {}".format(resource_id, str(e)))
+        pass
 
 
 def delete_resource(resource_id):
