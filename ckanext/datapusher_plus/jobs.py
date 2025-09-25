@@ -941,11 +941,45 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            # return as we can't push an invalid CSV file
-            logger.error(
-                "Job aborted as the file cannot be normalized/transcoded: {}.".format(e)
-            )
-            return
+            logger.warning("qsv input failed, attempting to fix field count inconsistencies...")
+            
+            import csv
+            max_fields = 0
+            rows = []
+            
+            with open(tmp, 'r', encoding='utf-8', errors='replace') as infile:
+                reader = csv.reader(infile)
+                for row in reader:
+                    rows.append(row)
+                    max_fields = max(max_fields, len(row))
+
+            fixed_tmp = os.path.join(temp_dir, "fixed_fields.csv")
+            with open(fixed_tmp, 'w', newline='', encoding='utf-8') as outfile:
+                writer = csv.writer(outfile)
+                for row in rows:
+                    while len(row) < max_fields:
+                        row.append('')
+                    writer.writerow(row)
+            
+            try:
+                qsv_input = subprocess.run(
+                    [
+                        conf.QSV_BIN,
+                        "input",
+                        fixed_tmp,
+                        "--trim-headers",
+                        "--trim-fields",
+                        "--encoding-errors", "replace",
+                        "--output",
+                        qsv_input_csv,
+                    ],
+                    check=True,
+                )
+                tmp = qsv_input_csv  # Use the processed file
+                logger.info("Successfully fixed field count inconsistencies and normalized...")
+            except subprocess.CalledProcessError as e2:
+                logger.error("Job aborted as the file cannot be normalized/transcoded even after fixing: {}.".format(e2))
+                return
         tmp = qsv_input_csv
         logger.info("Normalized & transcoded...")
 
