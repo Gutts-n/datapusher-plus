@@ -942,8 +942,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             )
         except subprocess.CalledProcessError as e:
             logger.warning("qsv input failed, attempting to fix field count inconsistencies...")
-            
-            import csv
+
             max_fields = 0
             rows = []
             
