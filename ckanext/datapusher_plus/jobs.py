@@ -1053,14 +1053,15 @@ def _push_to_datastore(
     else:
         cur = raw_connection.cursor()
 
-        # truncate table to use copy freeze option and further increase
-        # performance as there is no need for WAL logs to be maintained
-        # https://www.postgresql.org/docs/current/populate.html#POPULATE-COPY-FROM
+        # truncate table in case we're loading over an existing resource
         try:
             cur.execute(
                 sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(resource_id))
             )
-
+            # commit to ensure that the AccessExclusive lock is only held for the
+            # duration of the truncate, otherwise no other access to the table is
+            # allowed, blocking all selects. 
+            raw_connection.commit()
         except psycopg2.Error as e:
             logger.warning(f"Could not TRUNCATE: {e}")
 
@@ -1068,7 +1069,7 @@ def _push_to_datastore(
         column_names = sql.SQL(",").join(sql.Identifier(c) for c in col_names_list)
         copy_sql = sql.SQL(
             "COPY {} ({}) FROM STDIN "
-            "WITH (FORMAT CSV, FREEZE 1, "
+            "WITH (FORMAT CSV, "
             "HEADER 1, ENCODING 'UTF8');"
         ).format(
             sql.Identifier(resource_id),
@@ -1215,21 +1216,58 @@ def _push_to_datastore(
         package_id, scheming_yaml_type="dataset"
     )
 
-    # check if package dpp_suggestions field does not exist
-    # and there are "suggestion_formula" keys in the scheming_yaml
-    if "dpp_suggestions" not in package:
-        # Check for suggestion_formula in dataset_fields
-        has_suggestion_formula = any(
-            isinstance(field, dict)
-            and any(key.startswith("suggestion_formula") for key in field.keys())
-            for field in scheming_yaml["dataset_fields"]
+    # Check for suggestion_formula in dataset_fields
+    has_suggestion_formula = any(
+        isinstance(field, dict)
+        and any(key.startswith("suggestion_formula") for key in field.keys())
+        for field in scheming_yaml["dataset_fields"]
+    )
+
+    if has_suggestion_formula:
+
+        logger.info(
+            'Found suggestion formulae in schema'
         )
 
-        if not has_suggestion_formula:
+        # Check for "dpp_suggestions" in scheming_yaml
+        schema_has_dpp_suggestions = any(
+            isinstance(field, dict)
+            and field.get("field_name") == "dpp_suggestions"
+            for field in scheming_yaml["dataset_fields"]
+        )
+        if not schema_has_dpp_suggestions:
             logger.error(
-                '"dpp_suggestions" field required but not found in package to process Suggestion Formulae. Ensure that your scheming.yaml file contains the "dpp_suggestions" field as a json_object.'
+                '"dpp_suggestions" field required but not found in your schema. Ensure that your scheming.yaml file contains the "dpp_suggestions" field as a json_object.'
             )
             return
+        else:
+            logger.info(
+                'Found "dpp_suggestions" field in schema'
+            )
+
+        # add "dpp_suggestions" to package if it does not exist
+        if "dpp_suggestions" not in package:
+
+            logger.warning(
+                'Warning: "dpp_suggestions" field required to process Suggestion Formulae is not found in this package. Adding "dpp_suggestions" to package'
+            )
+
+            try:
+                package["dpp_suggestions"] = {}
+                dsu.patch_package(package)
+                logger.warning(
+                    '"dpp_suggestions" field added to package'
+                )
+                
+            except Exception as e:
+                logger.error(
+                    f'Error adding "dpp_suggestions" field {e}'
+                )
+                return
+    else:
+        logger.info(
+            'No suggestion formulae found'
+        )
 
     logger.trace(f"package: {package}")
 

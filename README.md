@@ -48,7 +48,7 @@ There are two Formula types that are indicated by adding these keywords to the s
 
 In addition, Datapusher+ is no longer a webservice, but a full-fledged CKAN extension. It drops usage of the deprecated [CKAN Service Provider][], with the unmaintained [Messytables] replaced by the blazing-fast [qsv] data-wrangling engine.
 
-[TNRIS](https://tnris.org)/[TWDB](https://www.twdb.texas.gov/) provided the use cases that informed and supported the development
+[TxGIO](https://geographic.texas.gov/)/[TWDB](https://www.twdb.texas.gov/) provided the use cases that informed and supported the development
 of Datapusher+, specifically, to support a [Resource-first upload workflow](docs/RESOURCE_FIRST_WORKFLOW.md#Resource-first-Upload-Workflow).
 
 For a more detailed overview, see the [CKAN Monthly Live Jan 2023 presentation](https://docs.google.com/presentation/d/e/2PACX-1vT0BfmrrtaEINRGg4UI_m7B02_X6HlFr4yN_DXmgX9goVtgu2DNmZjl-SowL9ZA2ibQhDjScRRJh95q/pub?start=false&loop=false&delayms=3000).
@@ -143,11 +143,53 @@ Without an index, it takes 1.3 seconds.
       Ok, that's bad, but what makes it worse is that the old table has been deleted already, and Datapusher doesn't tell you what
       caused the job to fail! YIKES!!!!
 
+## DRUF: Dataset Resource Upload First Workflow
+
+DataPusher+ supports an optional **DRUF (Dataset Resource Upload First)** workflow that allows users to upload data files before creating dataset metadata. This resource-first approach is particularly useful for:
+
+- **Data-driven workflows**: Where the structure and content of the data informs the metadata
+- **Exploratory data publishing**: When you want to examine the data before writing descriptions
+- **Simplified workflows**: Reducing the cognitive load of filling out metadata forms upfront
+
+### How DRUF Works
+
+When DRUF is enabled, the dataset creation workflow is modified:
+
+1. **"Add Dataset" buttons** redirect to a resource upload page instead of the metadata form
+2. **Temporary datasets** are automatically created with placeholder metadata
+3. **Resource upload happens first**, allowing DataPusher+ to analyze the data
+4. **Metadata forms** are enhanced with data-driven suggestions based on the uploaded content
+5. **Form redirects** guide users through a logical resource-first workflow
+
+### Enabling DRUF
+
+- To enable DRUF you need [`DRUF compatable ckan version`](https://github.com/ckan/ckan/tree/7778-iformredirect) 
+- You need to have scheming extension enabled and use the example DRUF compatable schema included in the dp+ extension.
+
+Add the following configuration to your CKAN config file (e.g., `/etc/ckan/default/ckan.ini`):
+
+
+```ini
+# Enable DRUF (Dataset Resource Upload First) workflow
+ckanext.datapusher_plus.enable_druf = true
+ckanext.datapusher_plus.enable_form_redirect = true
+```
+
+
+### Backwards Compatibility
+
+DRUF is completely optional and disabled by default. When disabled:
+- Standard CKAN dataset creation workflow is preserved
+- No template modifications are applied
+- Full backwards compatibility with existing CKAN installations
+
+
 ## Requirements:
 * CKAN 2.10+
 * Python 3.10+
 * tested and developed on Ubuntu 22.04.5
 * [`ckan.datastore.sqlsearch.enabled`](https://docs.ckan.org/en/2.10/maintaining/datastore.html#ckanext.datastore.logic.action.datastore_search_sql) set to `true` if you want to use the `temporal_resolution` and `guess_accrual_periodicity` Formula helpers
+* ckanext-scheming extension
 
 ## Development Installation
 
@@ -181,6 +223,35 @@ Datapusher+ from version 1.0.0 onwards will be installed as a extension of CKAN,
 
     ## Option 1: Debian Package Installation (Easiest)
 
+    [Download the appropriate precompiled binaries](https://github.com/dathere/qsv/releases/latest) for your platform and copy
+    it to the appropriate directory, e.g. for Linux:
+
+    ```bash
+    wget https://github.com/dathere/qsv/releases/download/4.0.0/qsv-4.0.0-x86_64-unknown-linux-gnu.zip
+    unzip qsv-4.0.0-x86_64-unknown-linux-gnu.zip
+    rm qsv-4.0.0-x86_64-unknown-linux-gnu.zip
+    sudo mv qsv* /usr/local/bin
+    ```
+
+    Alternatively, if you want to install qsv from source, follow
+    the instructions [here](https://github.com/dathere/qsv#installation). Note that when compiling from source,
+    you may want to look into the [Performance Tuning](https://github.com/dathere/qsv#performance-tuning)
+    section to squeeze even more performance from qsv.
+
+    Also, if you get glibc errors when starting qsv, your Linux distro may not have the required version of the GNU C Library
+    (This will be the case when running Ubuntu 18.04 or older).
+    If so, use the `unknown-linux-musl.zip` archive as it is statically linked with the MUSL C Library.
+
+    If you already have qsv, update it to the latest release by using the --update option.
+
+    `qsvdp --update`
+
+    > ℹ️ **NOTE:** qsv is a general purpose CSV data-wrangling toolkit that gets regular updates. To update to the latest version, just run
+    qsv with the `--update` option and it will check for the latest version and update as required.
+
+    ### Linux Installation
+
+    If you are running Debian based distribution, you can install qsv using the following command:
     If you are running Debian based Linux distribution on x86_64, you can quickly install qsv using the following commands:
 
     Add the qsv repository to your sources list:
@@ -243,6 +314,12 @@ Datapusher+ from version 1.0.0 onwards will be installed as a extension of CKAN,
     ckan config-tool /etc/ckan/default/ckan.ini "ckanext.datapusher_plus.api_token=$(ckan -c /etc/ckan/default/ckan.ini user token add CKAN_ADMIN dpplus | tail -n 1 | tr -d '\t')"
     ```
 
+7. DataPusher+ Database Setup
+
+   ```
+   ckan -c /etc/ckan/default/ckan.ini db upgrade -p datapusher_plus
+   ```
+
 ## Configuring
 
 ### CKAN Configuration
@@ -253,11 +330,10 @@ Add `datapusher_plus` to the plugins in your CKAN configuration file
 ```ini
 ckan.plugins = <other plugins> datapusher_plus
 ```
-
 Use a DP+ extended scheming schema:
 
 ```ini
-scheming.dataset_schemas =  ckanext.datapusher_plus:dataset_schema.yaml
+scheming.dataset_schemas =  ckanext.datapusher_plus:dataset-druf.yaml
 ```
 
 Configure DP+ numerous settings. See [config.py](ckanext/datapusher_plus/config.py) for details.
