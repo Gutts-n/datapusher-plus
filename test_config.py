@@ -47,11 +47,13 @@ def test_configuration():
             
             # Simulate configuration
             for key, value in test['config'].items():
-                tk.config[key] = value
-            
+                # Convert config key to environment variable format
+                env_key = key.replace('.', '__').upper()
+                os.environ[env_key] = str(value)
+
             # Test helper functions
-            enable_druf = tk.asbool(tk.config.get('ckanext.datapusher_plus.enable_druf', False))
-            enable_form_redirect = tk.asbool(tk.config.get('ckanext.datapusher_plus.enable_form_redirect', False))
+            enable_druf = tk.asbool(os.environ.get('CKANEXT__DATAPUSHER_PLUS__ENABLE_DRUF', 'False'))
+            enable_form_redirect = tk.asbool(os.environ.get('CKANEXT__DATAPUSHER_PLUS__ENABLE_FORM_REDIRECT', 'False'))
             
             print(f"  DRUF enabled: {enable_druf}")
             print(f"  IFormRedirect enabled: {enable_form_redirect}")
@@ -66,7 +68,8 @@ def test_configuration():
             
             # Clear config for next test
             for key in test['config'].keys():
-                tk.config.pop(key, None)
+                env_key = key.replace('.', '__').upper()
+                os.environ.pop(env_key, None)
                 
     except ImportError as e:
         print(f"Could not import CKAN modules: {e}")
