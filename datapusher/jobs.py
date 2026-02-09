@@ -582,7 +582,8 @@ def push_to_datastore(task_id, input, dry_run=False):
     spreadsheet_extensions = ["XLS", "XLSX", "ODS", "XLSM", "XLSB"]
     if resource_format in spreadsheet_extensions:
         # if so, export spreadsheet as a CSV file
-        default_excel_sheet = config.get("DEFAULT_EXCEL_SHEET")
+        # Check if resource has a custom excel_sheet_index field, otherwise use global default
+        default_excel_sheet = resource.get("excel_sheet_index", config.get("DEFAULT_EXCEL_SHEET"))
         logger.info(
             "Converting {} sheet {} to CSV...".format(
                 resource_format, default_excel_sheet
