@@ -665,6 +665,7 @@ def push_to_datastore(task_id, input, dry_run=False):
                     qsv_bin,
                     "input",
                     tmp.name,
+                    "--auto-skip",
                     "--trim-headers",
                     "--output",
                     qsv_input_csv.name,
